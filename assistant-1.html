@@ -1,0 +1,1582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0c08">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Virtual Agent · Signal Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+<style>
+
+:root{
+    --ink:#0a0c08;
+    --panel:#14170f;
+    --panel-raised:#191d12;
+    --bezel:#20251a;
+    --amber:#ffb300;
+    --amber-bright:#ffd166;
+    --amber-dim:#7a531c;
+    --amber-glow:rgba(255,179,0,.35);
+    --paper:#efe7d8;
+    --paper-dim:#a79f8c;
+    --line:rgba(255,179,0,.16);
+    --danger:#e0563f;
+    --font-display:'Space Mono', ui-monospace, 'SFMono-Regular', monospace;
+    --font-body:'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --radius:16px;
+    --radius-sm:9px;
+}
+
+*{ box-sizing:border-box; }
+
+html{ color-scheme: dark; }
+
+body{
+    margin:0;
+    min-height:100vh;
+    background:
+        radial-gradient(ellipse 900px 500px at 50% -10%, rgba(255,179,0,.08), transparent 60%),
+        var(--ink);
+    color:var(--paper);
+    font-family:var(--font-body);
+    padding:32px 16px 64px;
+    display:flex;
+    justify-content:center;
+    position:relative;
+    overflow-x:hidden;
+}
+
+/* faint fixed scanline texture across the whole page */
+body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    background-image:repeating-linear-gradient(
+        to bottom,
+        rgba(255,255,255,.02) 0px,
+        rgba(255,255,255,.02) 1px,
+        transparent 2px,
+        transparent 3px
+    );
+    mix-blend-mode:overlay;
+    z-index:0;
+}
+
+a{ color:var(--amber); }
+
+button{ font-family:inherit; }
+
+:focus-visible{
+    outline:2px solid var(--amber);
+    outline-offset:2px;
+    border-radius:4px;
+}
+
+.eyebrow{
+    font-family:var(--font-display);
+    font-size:.68rem;
+    letter-spacing:.24em;
+    text-transform:uppercase;
+    color:var(--amber-dim);
+}
+
+/* ============ CONSOLE SHELL ============ */
+
+.console{
+    position:relative;
+    z-index:1;
+    width:100%;
+    max-width:960px;
+    background:
+        linear-gradient(180deg, var(--panel-raised), var(--panel));
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:
+        0 0 0 1px rgba(0,0,0,.6),
+        0 40px 80px -30px rgba(0,0,0,.8),
+        0 0 120px -40px var(--amber-glow),
+        inset 0 1px 0 rgba(255,255,255,.03);
+    padding:28px 28px 24px;
+    opacity:0;
+    animation:consoleIn .7s ease forwards;
+}
+
+@keyframes consoleIn{
+    from{ opacity:0; transform:translateY(10px); }
+    to{ opacity:1; transform:translateY(0); }
+}
+
+/* ============ HEADER ============ */
+
+.console-top{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:20px;
+    padding-bottom:20px;
+    border-bottom:1px solid var(--line);
+    flex-wrap:wrap;
+}
+
+.brand h1{
+    margin:.35rem 0 0;
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:1.6rem;
+    letter-spacing:.02em;
+    text-transform:uppercase;
+    color:var(--amber-bright);
+    text-shadow:0 0 24px var(--amber-glow);
+}
+
+.led-row{
+    display:flex;
+    gap:14px;
+    margin-top:12px;
+}
+
+.led{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-family:var(--font-display);
+    font-size:.65rem;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--paper-dim);
+}
+
+.led .dot{
+    width:7px;
+    height:7px;
+    border-radius:50%;
+    background:var(--amber-dim);
+    box-shadow:none;
+    transition:background .2s ease, box-shadow .2s ease;
+}
+
+body.led-mic #led-mic .dot,
+body.led-text #led-text .dot,
+body.led-vision #led-vision .dot,
+body.led-speak #led-speak .dot{
+    background:var(--amber);
+    box-shadow:0 0 8px 2px var(--amber-glow);
+    animation:ledPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes ledPulse{
+    0%,100%{ opacity:1; }
+    50%{ opacity:.55; }
+}
+
+.top-right{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:12px;
+}
+
+.clock-readout{
+    text-align:right;
+    background:rgba(0,0,0,.35);
+    border:1px solid var(--line);
+    border-radius:var(--radius-sm);
+    padding:8px 14px;
+    min-width:150px;
+}
+
+.clock-readout .time{
+    font-family:var(--font-display);
+    font-size:1.05rem;
+    color:var(--amber);
+    letter-spacing:.04em;
+}
+
+.clock-readout .date{
+    font-family:var(--font-display);
+    font-size:.68rem;
+    color:var(--paper-dim);
+    margin-top:2px;
+}
+
+.vision-toggle{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background:var(--panel-raised);
+    border:1px solid var(--amber-dim);
+    color:var(--paper);
+    font-family:var(--font-display);
+    font-size:.72rem;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    padding:9px 16px;
+    border-radius:999px;
+    cursor:pointer;
+    transition:all .2s ease;
+}
+
+.vision-toggle:hover{
+    border-color:var(--amber);
+    color:var(--amber-bright);
+    box-shadow:0 0 18px -4px var(--amber-glow);
+}
+
+/* ============ VIEWPORT / SIGNATURE ============ */
+
+.viewport{
+    display:flex;
+    align-items:center;
+    gap:28px;
+    padding:32px 4px;
+    flex-wrap:wrap;
+}
+
+.porthole{
+    position:relative;
+    width:132px;
+    height:132px;
+    flex-shrink:0;
+    border-radius:50%;
+    padding:6px;
+    background:conic-gradient(from 200deg, var(--amber-dim), var(--bezel) 40%, var(--amber-dim) 100%);
+    box-shadow:0 0 0 1px rgba(0,0,0,.5), 0 12px 30px -10px rgba(0,0,0,.7);
+}
+
+.porthole-inner{
+    position:relative;
+    width:100%;
+    height:100%;
+    border-radius:50%;
+    overflow:hidden;
+    background:radial-gradient(circle at 50% 35%, #241f14, #0c0d08 75%);
+}
+
+.porthole-inner img{
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    position:relative;
+    z-index:1;
+    font-size:0; /* keep a missing image's alt text from spilling into the porthole */
+    color:transparent;
+}
+
+.porthole-inner::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    border-radius:50%;
+    box-shadow:inset 0 0 24px rgba(0,0,0,.75);
+    background-image:repeating-linear-gradient(to bottom, rgba(255,255,255,.03) 0, rgba(255,255,255,.03) 1px, transparent 2px, transparent 3px);
+    z-index:2;
+    pointer-events:none;
+}
+
+.meter-block{
+    flex:1;
+    min-width:220px;
+}
+
+.meter-label{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:10px;
+}
+
+#status-text{
+    font-family:var(--font-display);
+    font-size:.72rem;
+    letter-spacing:.14em;
+    color:var(--amber);
+}
+
+.signal-meter{
+    display:flex;
+    align-items:flex-end;
+    gap:6px;
+    height:88px;
+    padding:14px 18px;
+    background:rgba(0,0,0,.35);
+    border:1px solid var(--line);
+    border-radius:var(--radius-sm);
+}
+
+.meter-bar{
+    flex:1;
+    height:100%;
+    background:linear-gradient(to top, var(--amber-dim), var(--amber));
+    border-radius:3px;
+    transform-origin:bottom;
+    transform:scaleY(.25);
+    animation:meterIdle 2.4s ease-in-out infinite;
+    opacity:.85;
+}
+
+.meter-bar:nth-child(1){ animation-duration:2.1s; }
+.meter-bar:nth-child(2){ animation-duration:1.7s; animation-delay:-.3s; }
+.meter-bar:nth-child(3){ animation-duration:2.6s; animation-delay:-.9s; }
+.meter-bar:nth-child(4){ animation-duration:1.4s; animation-delay:-.5s; }
+.meter-bar:nth-child(5){ animation-duration:2.3s; animation-delay:-1.1s; }
+.meter-bar:nth-child(6){ animation-duration:1.9s; animation-delay:-.2s; }
+.meter-bar:nth-child(7){ animation-duration:2.5s; animation-delay:-1.4s; }
+.meter-bar:nth-child(8){ animation-duration:1.6s; animation-delay:-.7s; }
+.meter-bar:nth-child(9){ animation-duration:2.2s; animation-delay:-1s; }
+
+@keyframes meterIdle{
+    0%,100%{ transform:scaleY(.18); }
+    50%{ transform:scaleY(.4); }
+}
+
+@keyframes meterListen{
+    0%,100%{ transform:scaleY(.2); }
+    30%{ transform:scaleY(.95); }
+    60%{ transform:scaleY(.35); }
+    80%{ transform:scaleY(.75); }
+}
+
+@keyframes meterSpeak{
+    0%,100%{ transform:scaleY(.3); }
+    50%{ transform:scaleY(1); }
+}
+
+body.led-mic .meter-bar{
+    animation-name:meterListen;
+    animation-duration:.6s;
+}
+
+body.led-speak .meter-bar{
+    animation-name:meterSpeak;
+    animation-duration:.5s;
+}
+
+/* ============ COMMAND DECK ============ */
+
+.deck{
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+}
+
+.key-btn{
+    flex:1;
+    min-width:200px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    background:var(--panel-raised);
+    border:1px solid var(--amber-dim);
+    color:var(--paper);
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:.85rem;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    padding:18px 20px;
+    border-radius:var(--radius-sm);
+    cursor:pointer;
+    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease, color .15s ease;
+    box-shadow:0 4px 0 0 rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+.key-btn i{ font-size:1rem; color:var(--amber); }
+
+.key-btn:hover{
+    border-color:var(--amber);
+    color:var(--amber-bright);
+    box-shadow:0 4px 0 0 rgba(0,0,0,.45), 0 0 20px -6px var(--amber-glow);
+}
+
+.key-btn:active{
+    transform:translateY(3px);
+    box-shadow:0 1px 0 0 rgba(0,0,0,.45);
+}
+
+#command-input{
+    display:none;
+    width:100%;
+    margin-top:14px;
+    background:rgba(0,0,0,.4);
+    border:1px solid var(--amber-dim);
+    color:var(--paper);
+    font-family:var(--font-display);
+    font-size:.95rem;
+    padding:14px 16px;
+    border-radius:var(--radius-sm);
+}
+
+#command-input::placeholder{ color:var(--paper-dim); }
+
+#command-input:focus{
+    border-color:var(--amber);
+    box-shadow:0 0 0 3px rgba(255,179,0,.12);
+}
+
+/* ============ TRANSCRIPT ============ */
+
+.transcript{
+    margin-top:26px;
+}
+
+.transcript-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:10px;
+}
+
+.transcript-head .eyebrow{ color:var(--amber-dim); }
+
+#clear-history-btn{
+    display:none;
+    align-items:center;
+    gap:6px;
+    background:transparent;
+    border:1px solid var(--amber-dim);
+    color:var(--paper-dim);
+    font-family:var(--font-display);
+    font-size:.68rem;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    padding:6px 12px;
+    border-radius:999px;
+    cursor:pointer;
+    transition:all .2s ease;
+}
+
+#clear-history-btn:hover{
+    border-color:var(--amber);
+    color:var(--amber);
+}
+
+#conversation{
+    background:rgba(0,0,0,.4);
+    border:1px solid var(--line);
+    border-radius:var(--radius-sm);
+    padding:18px 20px;
+    max-height:320px;
+    overflow-y:auto;
+    text-align:left;
+    scroll-behavior:smooth;
+}
+
+#conversation:empty::before{
+    content:"No transmissions yet. Say or type a command to begin.";
+    color:var(--paper-dim);
+    font-size:.9rem;
+}
+
+#conversation::-webkit-scrollbar{ width:8px; }
+#conversation::-webkit-scrollbar-track{ background:rgba(0,0,0,.3); border-radius:8px; }
+#conversation::-webkit-scrollbar-thumb{ background:var(--amber-dim); border-radius:8px; }
+
+.line{
+    margin:0 0 12px;
+    padding-bottom:12px;
+    border-bottom:1px dashed rgba(255,179,0,.08);
+    line-height:1.55;
+    font-size:.95rem;
+    display:flex;
+    flex-wrap:wrap;
+    align-items:baseline;
+    gap:10px;
+}
+
+.line:last-child{ margin-bottom:0; border-bottom:none; padding-bottom:0; }
+
+.line-tag{
+    font-family:var(--font-display);
+    font-size:.68rem;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    padding:2px 8px;
+    border-radius:4px;
+    flex-shrink:0;
+}
+
+.line--user .line-tag{ background:rgba(239,231,216,.08); color:var(--paper); }
+.line--agent .line-tag{ background:rgba(255,179,0,.12); color:var(--amber); }
+
+.line-text{ color:var(--paper); flex:1 1 auto; min-width:0; }
+
+.line-speak-btn{
+    background:transparent;
+    border:none;
+    color:var(--amber-dim);
+    cursor:pointer;
+    font-size:.95rem;
+    padding:2px 4px;
+    transition:color .15s ease;
+}
+
+.line-speak-btn:hover{ color:var(--amber); }
+
+/* ============ WEBCAM ============ */
+
+#webcam{
+    display:block;
+    width:min(560px,100%);
+    margin:24px auto 0;
+    border-radius:var(--radius);
+    border:1px solid var(--amber-dim);
+    box-shadow:0 0 40px -12px var(--amber-glow);
+}
+
+#webcam.hidden{
+    display:none;
+    border:none;
+    box-shadow:none;
+}
+
+#webcam{ position:absolute !important; left:-9999px; }
+#webcam-canvas{
+    display:none;
+    width:min(560px,100%);
+    height:auto;
+    margin:24px auto 0;
+    border-radius:var(--radius);
+    border:1px solid var(--amber-dim);
+    box-shadow:0 0 40px -12px var(--amber-glow);
+}
+
+#image-upload{ display:none; }
+
+#uploaded-image{
+    display:block;
+    max-width:80%;
+    height:auto;
+    margin:16px auto 0;
+    border-radius:var(--radius-sm);
+}
+
+#uploaded-image[src=""]{ display:none; }
+
+/* ============ CALENDAR POPUP ============ */
+
+#calendar-clock-popup{
+    position:fixed;
+    top:96px;
+    right:24px;
+    width:280px;
+    background:var(--panel);
+    border:1px solid var(--amber-dim);
+    border-radius:var(--radius-sm);
+    padding:18px;
+    box-shadow:0 20px 50px -18px rgba(0,0,0,.8), 0 0 30px -10px var(--amber-glow);
+    z-index:1001;
+}
+
+#popup-content{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+}
+
+#popup-clock{
+    font-family:var(--font-display);
+    font-size:1.15rem;
+    color:var(--amber);
+    margin-bottom:10px;
+}
+
+#calendar-controls{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:6px;
+    margin-bottom:12px;
+}
+
+#calendar-controls button,
+#calendar-controls select{
+    background:rgba(0,0,0,.4);
+    color:var(--amber);
+    border:1px solid var(--amber-dim);
+    border-radius:6px;
+    padding:5px 8px;
+    font-family:var(--font-display);
+    font-size:.75rem;
+    cursor:pointer;
+}
+
+#calendar-controls button:hover,
+#calendar-controls select:hover{
+    background:var(--amber);
+    color:#1a1200;
+}
+
+#popup-calendar table{ border-collapse:collapse; width:100%; }
+
+#popup-calendar th, #popup-calendar td{
+    border:1px solid rgba(255,179,0,.12);
+    padding:6px;
+    text-align:center;
+    font-size:.78rem;
+    color:var(--paper-dim);
+}
+
+#popup-calendar th{ color:var(--amber-dim); font-family:var(--font-display); }
+
+#popup-calendar td.today{
+    background:var(--amber);
+    color:#1a1200;
+    font-weight:700;
+    border-radius:4px;
+}
+
+/* ============ FOOTER ============ */
+
+footer{
+    margin-top:24px;
+    padding-top:20px;
+    border-top:1px solid var(--line);
+    display:flex;
+    justify-content:center;
+    gap:14px;
+    flex-wrap:wrap;
+}
+
+.nav-pill{
+    background:transparent;
+    border:1px solid var(--amber-dim);
+    color:var(--paper-dim);
+    font-family:var(--font-display);
+    font-size:.72rem;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    padding:10px 22px;
+    border-radius:999px;
+    cursor:pointer;
+    transition:all .2s ease;
+}
+
+.nav-pill:hover{
+    border-color:var(--amber);
+    color:var(--amber-bright);
+}
+
+/* ============ RESPONSIVE ============ */
+
+@media (max-width:640px){
+    .console{ padding:20px 16px 18px; }
+    .console-top{ flex-direction:column; align-items:flex-start; }
+    .top-right{ align-items:flex-start; width:100%; }
+    .clock-readout{ text-align:left; }
+    .viewport{ flex-direction:column; align-items:flex-start; }
+    .meter-block{ width:100%; }
+    .key-btn{ min-width:100%; }
+    .brand h1{ font-size:1.25rem; }
+}
+
+@media (prefers-reduced-motion: reduce){
+    .console{ animation:none; opacity:1; }
+    .meter-bar{ animation:none !important; transform:scaleY(.4); }
+    .led .dot{ animation:none !important; }
+}
+
+</style>
+</head>
+<body>
+
+<div class="console">
+
+    <div class="console-top">
+        <div class="brand">
+            <div class="eyebrow">Signal Console · Ch.01</div>
+            <h1>Your Virtual Agent</h1>
+            <div class="led-row">
+                <span class="led" id="led-mic"><span class="dot"></span>Mic</span>
+                <span class="led" id="led-text"><span class="dot"></span>Text</span>
+                <span class="led" id="led-vision"><span class="dot"></span>Vision</span>
+                <span class="led" id="led-speak"><span class="dot"></span>Speak</span>
+            </div>
+        </div>
+        <div class="top-right">
+            <div class="clock-readout" id="clock" title="Click for calendar">
+                <div class="time" id="time"></div>
+                <div class="date" id="date"></div>
+            </div>
+            <button class="vision-toggle" id="vision-btn" title="Activate Vision">
+                <i class="fas fa-camera"></i><span>Vision</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="calendar-clock-popup" style="display:none;">
+        <div id="popup-content">
+            <div id="popup-clock">--:--:--</div>
+            <div id="calendar-controls">
+                <button onclick="changeMonth(-1)">&#9664;</button>
+                <select id="month-select"></select>
+                <select id="year-select"></select>
+                <button onclick="changeMonth(1)">&#9654;</button>
+            </div>
+            <div id="popup-calendar"></div>
+        </div>
+    </div>
+
+    <div class="viewport">
+        <div class="porthole">
+            <div class="porthole-inner">
+                <img id="avatar" src="1000099840.gif" alt="Assistant Avatar">
+            </div>
+        </div>
+        <div class="meter-block">
+            <div class="meter-label">
+                <span class="eyebrow">Signal</span>
+                <span id="status-text">Idle</span>
+            </div>
+            <div class="signal-meter" aria-hidden="true">
+                <div class="meter-bar"></div>
+                <div class="meter-bar"></div>
+                <div class="meter-bar"></div>
+                <div class="meter-bar"></div>
+                <div class="meter-bar"></div>
+                <div class="meter-bar"></div>
+                <div class="meter-bar"></div>
+                <div class="meter-bar"></div>
+                <div class="meter-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="deck">
+        <button class="key-btn" id="speak-btn"><i class="fas fa-microphone"></i>Transmit</button>
+        <button class="key-btn" id="text-btn"><i class="fas fa-keyboard"></i>Type a command</button>
+        <input type="text" id="command-input" placeholder="Type your command...">
+    </div>
+
+    <input type="file" id="image-upload" accept="image/*">
+    <img id="uploaded-image" src="">
+
+    <video id="webcam" width="640" height="480" class="hidden" autoplay playsinline muted></video>
+    <canvas id="webcam-canvas" width="640" height="480"></canvas>
+
+    <div class="transcript">
+        <div class="transcript-head">
+            <span class="eyebrow">Transcript Log</span>
+            <button id="clear-history-btn" onclick="document.getElementById('conversation').innerHTML = ''; this.style.display='none';">
+                <i class="fas fa-trash-alt"></i>Clear
+            </button>
+        </div>
+        <div id="conversation"></div>
+    </div>
+
+    <footer>
+        <button class="nav-pill" onclick="location.href='about2.html'">About Us</button>
+        <button class="nav-pill" onclick="location.href='features.html'">Features</button>
+    </footer>
+
+</div>
+
+<script>
+    // Shows any JavaScript error inside the page itself, so problems are visible on phones
+    function showPageError(msg) {
+        const box = document.getElementById('conversation');
+        if (!box) return;
+        const p = document.createElement('p');
+        p.className = 'line line--agent';
+        p.textContent = 'Error: ' + msg;
+        box.appendChild(p);
+    }
+    window.addEventListener('error', e => { if (e.message) showPageError(e.message + ' (line ' + e.lineno + ')'); });
+    window.addEventListener('unhandledrejection', e => showPageError(String(e.reason && e.reason.message || e.reason)));
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
+<script>
+        const synth = window.speechSynthesis;
+        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+        // Some browsers (in-app viewers, Firefox) have no speech recognition; use a safe stand-in so the rest of the app still loads
+        const recognition = SpeechRec ? new SpeechRec() : {
+            start() { displayResponse("Voice input isn't supported in this browser. Open this page in Chrome, or use Type a command."); },
+            stop() {}
+        };
+        const WIKIPEDIA_API_URL = 'https://en.wikipedia.org/api/rest_v1/page/summary/';
+    
+        let avatar = document.getElementById('avatar');
+        let imageUpload = document.getElementById('image-upload');
+        let uploadedImage = document.getElementById('uploaded-image');
+        let commandInput = document.getElementById('command-input');
+        let model;
+        let detectedObjects = [];
+        let isListening = false;
+        let isTextMode = false;
+        let isTypingMode = false;
+
+   
+        // Load the COCO-SSD model (guarded so a failed/slow CDN load can't
+        // take down the rest of the app — vision detection just won't have
+        // objects to report until/unless it loads)
+        if (typeof cocoSsd !== 'undefined') {
+            cocoSsd.load({ base: 'mobilenet_v2' }).then((loadedModel) => {
+                model = loadedModel;
+                console.log("COCO-SSD model loaded"); displayResponse("Object detection is ready.");
+            }).catch((err) => {
+                console.error("COCO-SSD failed to load:", err);
+            });
+        } else {
+            console.warn("COCO-SSD library unavailable; object detection will be disabled.");
+        }
+
+        // Second model: MobileNet names what is in the whole scene (1000 everyday categories)
+        let classifier = null;
+        let sceneGuesses = [];
+        let visionTimer = null;
+        let visionBusy = false;
+        if (typeof mobilenet !== 'undefined') {
+            mobilenet.load({ version: 2, alpha: 1.0 }).then(m => { classifier = m; console.log("MobileNet loaded"); })
+                .catch(err => console.error("MobileNet failed to load:", err));
+        }
+        function countLabels(list) {
+            const c = {};
+            list.forEach(l => c[l] = (c[l] || 0) + 1);
+            return Object.entries(c).map(([k, v]) => v > 1 ? `${k} (${v})` : k).join(', ');
+        }
+
+        function updateClockAndDate() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            const dateString = now.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+
+            document.getElementById('time').textContent = timeString;
+            document.getElementById('date').textContent = dateString;
+        }
+
+        setInterval(updateClockAndDate, 1000);
+        updateClockAndDate();
+
+        // Some browsers load voices asynchronously, so prime the voice list
+        if (typeof synth.onvoiceschanged !== 'undefined') {
+            synth.onvoiceschanged = () => synth.getVoices();
+        }
+
+
+        // Function to get a Google female voice
+        function getGoogleFemaleVoice() {
+            const voices = synth.getVoices();
+            // Prefer an explicit Google female voice
+            let voice = voices.find(v => v.name === "Google UK English Female")
+                || voices.find(v => v.name === "Google US English Female")
+                || voices.find(v => v.name.toLowerCase().includes("google") && v.name.toLowerCase().includes("female"));
+            // Fall back to any female-labeled English voice
+            if (!voice) {
+                voice = voices.find(v => v.lang && v.lang.startsWith("en") && v.name.toLowerCase().includes("female"));
+            }
+            return voice || null;
+        }
+
+        let isSpeaking = false;
+
+        setInterval(() => {
+            if (speechSynthesis.speaking && !isSpeaking) {
+                // Speaking just started
+                isSpeaking = true;
+                document.getElementById('avatar').src = 'speak.gif';
+            } else if (!speechSynthesis.speaking && isSpeaking) {
+                // Speaking just ended
+                isSpeaking = false;
+                document.getElementById('avatar').src = '1000099840.gif';
+            }
+        }, 100);  // Check every 100ms
+
+    
+        function speak(text, callback) {
+            if (isTypingMode) {
+                if (callback) callback();
+                return;
+            }
+
+            synth.cancel(); // Stop any speech currently in progress
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            const femaleVoice = getGoogleFemaleVoice();
+            if (femaleVoice) {
+                utterance.voice = femaleVoice;
+            }
+            utterance.pitch = 1;
+            utterance.rate = 1;
+
+            const avatar = document.getElementById('avatar');
+            avatar.src = 'speak.gif';
+
+            utterance.onend = () => {
+                avatar.src = '1000099840.gif';
+                if (callback) callback();
+            };
+            utterance.onerror = (err) => {
+                console.error("Error using Google TTS:", err);
+                avatar.src = '1000099840.gif';
+                if (callback) callback();
+            };
+
+            synth.speak(utterance);
+        }
+
+const conversation = document.getElementById('conversation');
+const clearBtn = document.getElementById('clear-history-btn');
+
+const checkScrollbar = () => {
+    if (conversation.scrollHeight > conversation.clientHeight) {
+        clearBtn.style.display = 'inline-block';
+    } else {
+        clearBtn.style.display = 'none';
+    }
+};
+
+const observer = new MutationObserver(checkScrollbar);
+observer.observe(conversation, { childList: true, subtree: true });
+
+// Run once initially in case there's preloaded content
+checkScrollbar();
+
+let currentMonth = new Date().getMonth();
+let currentYear = new Date().getFullYear();
+
+document.getElementById('clock').addEventListener('click', () => {
+    const popup = document.getElementById('calendar-clock-popup');
+    popup.style.display = (popup.style.display === 'none') ? 'block' : 'none';
+    generateCalendar(currentMonth, currentYear);
+});
+
+function updatePopupClock() {
+    const now = new Date();
+    const time = now.toLocaleTimeString();
+    document.getElementById('popup-clock').textContent = time;
+}
+setInterval(updatePopupClock, 1000);
+updatePopupClock();
+
+function populateMonthYearSelectors() {
+    const monthSelect = document.getElementById('month-select');
+    const yearSelect = document.getElementById('year-select');
+
+    const months = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ];
+
+    monthSelect.innerHTML = '';
+    months.forEach((month, i) => {
+        const option = document.createElement('option');
+        option.value = i;
+        option.text = month;
+        monthSelect.appendChild(option);
+    });
+
+    yearSelect.innerHTML = '';
+    for (let y = 1970; y <= 2100; y++) {
+        const option = document.createElement('option');
+        option.value = y;
+        option.text = y;
+        yearSelect.appendChild(option);
+    }
+
+    monthSelect.value = currentMonth;
+    yearSelect.value = currentYear;
+
+    monthSelect.onchange = () => {
+        currentMonth = parseInt(monthSelect.value);
+        generateCalendar(currentMonth, currentYear);
+    };
+
+    yearSelect.onchange = () => {
+        currentYear = parseInt(yearSelect.value);
+        generateCalendar(currentMonth, currentYear);
+    };
+}
+
+function generateCalendar(month, year) {
+    const today = new Date();
+    const isCurrentMonth = month === today.getMonth() && year === today.getFullYear();
+
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    let calendar = '<table>';
+    calendar += '<tr><th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th></tr><tr>';
+
+    for (let i = 0; i < firstDay; i++) {
+        calendar += '<td></td>';
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+        const isToday = isCurrentMonth && d === today.getDate();
+        calendar += `<td class="${isToday ? 'today' : ''}">${d}</td>`;
+        if ((firstDay + d) % 7 === 0) calendar += '</tr><tr>';
+    }
+
+    calendar += '</tr></table>';
+    document.getElementById('popup-calendar').innerHTML = calendar;
+}
+
+// Trigger population on load
+populateMonthYearSelectors();
+
+
+    
+        function stopWebcam() {
+            const webcam = document.getElementById('webcam');
+            clearInterval(visionTimer);
+            document.getElementById('webcam-canvas').style.display = 'none';
+            detectedObjects = [];
+            sceneGuesses = [];
+            const stream = webcam.srcObject;
+            if (stream) {
+                const tracks = stream.getTracks();
+                tracks.forEach(track => track.stop()); // Stop all media tracks
+                webcam.srcObject = null; // Reset the webcam stream
+            }
+            const response = "Webcam has been stopped, and vision has been deactivated.";
+            displayResponse(response);
+            speak(response);
+            
+            // Hide the webcam and remove the border by adding the 'hidden' class
+            webcam.classList.add('hidden');
+            webcam.style.display = 'none'; // Ensure it hides even though startWebcam sets an inline style
+        }
+
+        function detectObjectsFromWebcam() {
+            const canvas = document.getElementById('webcam-canvas');
+            const webcam = document.getElementById('webcam');
+            const ctx = canvas.getContext('2d');
+            canvas.style.display = 'block';
+            clearInterval(visionTimer);   // never stack loops
+            let frame = 0;
+            visionTimer = setInterval(async () => {
+                if (!model || visionBusy || webcam.readyState < 2) return;
+                visionBusy = true;
+                try {
+                    ctx.drawImage(webcam, 0, 0, canvas.width, canvas.height);
+                    const preds = await model.detect(canvas, 20, 0.4);
+                    detectedObjects = preds.map(p => p.class);
+                    ctx.lineWidth = 2;
+                    ctx.font = '14px monospace';
+                    preds.forEach(p => {
+                        const [x, y, w, h] = p.bbox;
+                        ctx.strokeStyle = '#ffb300';
+                        ctx.strokeRect(x, y, w, h);
+                        const label = `${p.class} ${Math.round(p.score * 100)}%`;
+                        ctx.fillStyle = '#ffb300';
+                        ctx.fillRect(x, Math.max(0, y - 18), ctx.measureText(label).width + 8, 18);
+                        ctx.fillStyle = '#0a0c08';
+                        ctx.fillText(label, x + 4, Math.max(12, y - 5));
+                    });
+                    if (classifier && frame++ % 15 === 0) {
+                        const guesses = await classifier.classify(canvas, 3);
+                        sceneGuesses = guesses.filter(g => g.probability > 0.3).map(g => g.className.split(',')[0]);
+                    }
+                } catch (e) {
+                    console.error(e);
+                } finally {
+                    visionBusy = false;
+                }
+            }, 100);
+        }
+        function describeVision() {
+            let response;
+            if (detectedObjects.length > 0) {
+                response = `I can see: ${countLabels(detectedObjects)}.`;
+                if (sceneGuesses.length) response += ` The scene also looks like: ${sceneGuesses.join(', ')}.`;
+            } else if (sceneGuesses.length) {
+                response = `I can't outline anything specific, but this looks like: ${sceneGuesses.join(', ')}.`;
+            } else {
+                response = "I'm not detecting any objects right now.";
+            }
+            displayResponse(response);
+            speak(response);
+        }
+
+    
+        function startWebcam() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                jSay("Camera needs a secure page (https) and a supported browser. Try opening this in Chrome from a hosted link.");
+                return;
+            }
+            // 'ideal' = rear camera on phones, normal webcam on laptops
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
+                .then((stream) => {
+                    const webcam = document.getElementById('webcam');
+                    const canvas = document.getElementById('webcam-canvas');
+                    webcam.classList.remove('hidden');
+                    webcam.style.display = 'block';
+                    webcam.srcObject = stream;
+                    webcam.onloadedmetadata = () => {
+                        // Match the canvas to the real video shape (portrait on phones) so boxes line up
+                        const scale = Math.min(1, 640 / (webcam.videoWidth || 640));
+                        canvas.width = Math.round((webcam.videoWidth || 640) * scale);
+                        canvas.height = Math.round((webcam.videoHeight || 480) * scale);
+                        webcam.play().catch(() => {});
+                    };
+                    detectObjectsFromWebcam();
+                })
+                .catch((err) => {
+                    console.error("Error accessing webcam: ", err);
+                    const why = err && err.name === 'NotAllowedError' ? "Camera permission was denied. Allow it in your browser settings."
+                        : "I couldn't access the camera.";
+                    jSay(why);
+                });
+        }
+
+        // ===== Device check: tells you exactly what works on this phone/laptop =====
+        function runSystemCheck() {
+            const yes = v => v ? 'yes' : 'NO';
+            const secure = window.isSecureContext;
+            const voice = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+            const cam = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+            displayResponse(`Version 6 loaded. Device check: secure page ${yes(secure)} · voice input ${yes(voice)} · voice output ${yes(!!window.speechSynthesis)} · camera ${yes(cam)}.`);
+            if (!voice) {
+                displayResponse("Voice input isn't available here, so I opened text mode. For voice, use Chrome (Android/laptop) or Safari (iPhone).");
+                commandInput.style.display = 'block';
+                isTextMode = true;
+            }
+            if (!secure) displayResponse("This page isn't secure (no https), so the mic and camera will be blocked. Host it on GitHub Pages or Netlify.");
+        }
+        window.addEventListener('load', () => setTimeout(runSystemCheck, 800));
+
+        function displayUserText(text) {
+    const conversation = document.getElementById('conversation');
+    const userEntry = document.createElement('p');
+    userEntry.className = 'line line--user';
+    userEntry.innerHTML = '<span class="line-tag">You</span><span class="line-text"></span>';
+    userEntry.querySelector('.line-text').textContent = text;
+    conversation.appendChild(userEntry);
+    conversation.scrollTop = conversation.scrollHeight;
+}
+
+function displayResponse(response) {
+    const conversation = document.getElementById('conversation');
+    const responseEntry = document.createElement('p');
+    responseEntry.className = 'line line--agent';
+    responseEntry.innerHTML = '<span class="line-tag">Agent</span><span class="line-text"></span><button class="line-speak-btn" title="Click to hear"><i class="fas fa-volume-up"></i></button>';
+    responseEntry.querySelector('.line-text').textContent = response;
+    responseEntry.querySelector('.line-speak-btn').addEventListener('click', () => speak(response));
+    conversation.appendChild(responseEntry);
+    responseEntry.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    conversation.scrollTop = conversation.scrollHeight;
+}
+
+
+    
+        function startListening() {
+            console.log("Starting speech recognition...");
+            recognition.start();
+        }
+    
+        recognition.onstart = function() {
+            console.log("Speech recognition started...");
+            document.getElementById('avatar').src = 'listen.gif'; // 👈 Change avatar
+            displayResponse("Listening...");
+        };
+
+        recognition.onend = function() {
+            console.log("Speech recognition ended.");
+            document.getElementById('avatar').src = '1000099840.gif';
+            isListening = false; // reset toggle
+        };
+
+
+    
+        recognition.onresult = function(event) {
+            const command = event.results[0][0].transcript.toLowerCase();
+            console.log("Recognized command:", command);
+            displayUserText(command);
+            processCommand(command);
+            try { recognition.start(); } catch (e) { /* already running */ }
+        };
+    
+        recognition.onerror = function(event) {
+            console.error('Speech recognition error:', event.error);
+            const msgs = {
+                'not-allowed': "Microphone permission is blocked. Allow the mic for this site in your browser settings, and open the page over https.",
+                'service-not-allowed': "Voice input isn't allowed here. Open this page in Chrome over https.",
+                'no-speech': "I didn't hear anything. Tap Transmit and try again.",
+                'audio-capture': "I can't find a microphone on this device.",
+                'network': "Voice input needs an internet connection.",
+                'aborted': ""
+            };
+            const m = (event.error in msgs) ? msgs[event.error] : ("Voice error: " + event.error);
+            if (m) displayResponse(m);
+        };
+
+        function turnOffTextMode() {
+            const response = "Okay, turning off text mode now.. The input box will now disappear.";
+            displayResponse(response);
+            speak(response);
+            commandInput.style.display = "none";  // Hide the input box
+        }
+
+        
+    // ===== JARVIS COMMANDS =====
+    const SITES = {
+        youtube:'https://www.youtube.com', google:'https://www.google.com', gmail:'https://mail.google.com',
+        whatsapp:'https://web.whatsapp.com', instagram:'https://www.instagram.com', maps:'https://maps.google.com',
+        github:'https://github.com', wikipedia:'https://www.wikipedia.org', chatgpt:'https://chatgpt.com', claude:'https://claude.ai'
+    };
+    const JOKES = [
+        "Why do programmers prefer dark mode? Because light attracts bugs.",
+        "I told my computer I needed a break, and it said no problem, it will go to sleep.",
+        "Why was the JavaScript developer sad? Because he didn't know how to null his feelings.",
+        "There are only 10 kinds of people: those who understand binary and those who don't."
+    ];
+    const WEATHER_CODES = [[0,'clear sky'],[3,'partly cloudy'],[48,'foggy'],[57,'drizzling'],[67,'raining'],[77,'snowing'],[82,'rain showers'],[99,'thunderstorms']];
+
+    function jSay(text) { displayResponse(text); speak(text); }
+
+    function openUrl(url, label) {
+        const w = window.open(url, '_blank');
+        if (w) { jSay(`Opening ${label}.`); return; }
+        // Browsers can block pop-ups opened by voice; give a tap-able link instead
+        jSay(`Your browser blocked the pop-up. Tap the link below to open ${label}.`);
+        const p = document.createElement('p');
+        p.className = 'line line--agent';
+        const a = document.createElement('a');
+        a.href = url; a.target = '_blank'; a.rel = 'noopener';
+        a.textContent = 'Tap to open ' + label;
+        p.appendChild(a);
+        document.getElementById('conversation').appendChild(p);
+    }
+
+    function getPosition() {
+        return new Promise((res, rej) => navigator.geolocation
+            ? navigator.geolocation.getCurrentPosition(pos => res(pos.coords), rej, { timeout: 8000 })
+            : rej(new Error('no geolocation')));
+    }
+
+    async function getWeather(place) {
+        try {
+            let lat, lon, name = place;
+            if (place) {
+                const g = await (await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(place)}&count=1`)).json();
+                if (!g.results || !g.results.length) { jSay(`I couldn't find a place called ${place}.`); return; }
+                ({ latitude: lat, longitude: lon, name } = g.results[0]);
+            } else {
+                try { const c = await getPosition(); lat = c.latitude; lon = c.longitude; name = 'your location'; }
+                catch (e) { jSay("I couldn't get your location. Try saying: weather in Bengaluru."); return; }
+            }
+            const d = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m&timezone=auto`)).json();
+            const cur = d.current;
+            const desc = (WEATHER_CODES.find(w => cur.weather_code <= w[0]) || [0, 'unknown'])[1];
+            jSay(`In ${name} it's ${Math.round(cur.temperature_2m)} degrees Celsius, feels like ${Math.round(cur.apparent_temperature)}, ${desc}. Humidity ${cur.relative_humidity_2m} percent, wind ${Math.round(cur.wind_speed_10m)} kilometres per hour.`);
+        } catch (e) {
+            console.error(e);
+            jSay("Sorry, I couldn't get the weather right now. Check your internet connection.");
+        }
+    }
+
+    function handleJarvis(c) {
+        c = c.replace(/[?.!,]+$/, '').trim();
+        let m;
+        if (/^(hi|hello|hey)( jarvis| assistant)?$/.test(c)) { jSay("Hello! I'm ready. Say help to hear what I can do."); return true; }
+        if (/^(help|what can you do)$/.test(c)) {
+            jSay("I can play videos on YouTube, open websites, search Google, tell the weather, time and date, set timers, calculate, tell jokes, answer questions from Wikipedia, and see objects with your camera.");
+            return true;
+        }
+        if (/^(what(?:'s| is) the time|what time is it|tell me the time|current time)$/.test(c)) {
+            jSay("It's " + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + "."); return true;
+        }
+        if (/^(what(?:'s| is) (?:the|today'?s) date|what day is it|today'?s date|what is today)$/.test(c)) {
+            jSay("Today is " + new Date().toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + "."); return true;
+        }
+        if (/^(tell me )?(a )?joke$/.test(c)) { jSay(JOKES[Math.floor(Math.random() * JOKES.length)]); return true; }
+
+        m = c.match(/timer (?:for )?(\d+) (second|minute|hour)s?/) || c.match(/(\d+)[ -](second|minute|hour)s? timer/);
+        if (m) {
+            const n = +m[1], unit = m[2];
+            const ms = n * { second: 1000, minute: 60000, hour: 3600000 }[unit];
+            jSay(`Timer set for ${n} ${unit}${n > 1 ? 's' : ''}.`);
+            setTimeout(() => jSay(`Time's up! Your ${n} ${unit} timer is done.`), ms);
+            return true;
+        }
+
+        m = c.match(/^(?:what(?:'s| is) the )?(?:weather|temperature)(?: (?:in|at|for|of) (.+?))?(?: today)?$/);
+        if (m) { getWeather(m[1]); return true; }
+
+        m = c.match(/^(?:please )?(?:play|watch|search|open)\s+(.+?)\s+(?:on|in)\s+youtube$/)
+            || c.match(/^youtube\s+(?:search\s+)?(.+)$/)
+            || c.match(/^play\s+(.+)$/);
+        if (m) {
+            const q = m[1].trim();
+            openUrl('https://www.youtube.com/results?search_query=' + encodeURIComponent(q), 'YouTube results for ' + q);
+            return true;
+        }
+
+        m = c.match(/^(?:open|go to|launch)\s+(.+)$/);
+        if (m) {
+            const name = m[1].replace(/^the /, '').replace(/ app$/, '').trim();
+            if (SITES[name]) { openUrl(SITES[name], name); return true; }
+        }
+
+        m = c.match(/^(?:google|search google for|search for|search)\s+(.+?)(?:\s+on google)?$/);
+        if (m) { openUrl('https://www.google.com/search?q=' + encodeURIComponent(m[1]), 'Google results for ' + m[1]); return true; }
+
+        m = c.match(/^(?:calculate|compute|what(?:'s| is)|whats)\s+(.+)$/);
+        if (m) {
+            const expr = m[1]
+                .replace(/multiplied by|times|into|\bx\b/g, '*').replace(/divided by|over/g, '/')
+                .replace(/plus/g, '+').replace(/minus/g, '-');
+            if (/^[\d\s+\-*/().]+$/.test(expr) && /\d/.test(expr) && /[+\-*/]/.test(expr)) {
+                try { jSay(`${m[1]} equals ${Function('"use strict"; return (' + expr + ')')()}.`); return true; } catch (e) {}
+            }
+        }
+        return false;
+    }
+
+    function processCommand(command) {
+    console.log("Processing command:", command);
+    if (handleJarvis(command)) return;
+
+    if (command.includes('wikipedia') && command.includes('search')) {
+        const query = command.replace('wikipedia search', '').trim();
+        searchWikipedia(query);
+    }
+    else if (command.startsWith('who is')) {
+        const person = command.replace('who is', '').trim();
+        searchWikipedia(person);
+    }
+    else if (command.startsWith('what is')) {
+        const topic = command.replace('what is', '').trim();
+        searchWikipedia(topic);
+    }
+    else if (command.startsWith('how does') || command.startsWith('how do')) {
+        const question = command.replace(/^how (does|do)/, '').replace('work', '').trim();
+        searchWikipedia(question);
+    }
+    else if (command.startsWith('how to') || command.startsWith('how can i')) {
+        const question = command.replace(/^how (to|can i)/, '').replace('do', '').trim();
+        searchWikipedia(question);
+    }
+    else if (command.startsWith('how')) {
+        const question = command.replace('how', '').trim();
+        searchWikipedia(question);
+    }
+    else if (command.includes('turn on text mode')) {
+        const response = "Umm, alright, text mode is now activated.. You can type commands now.";
+        displayResponse(response);
+        speak(response);
+        commandInput.style.display = "block";
+    }
+    else if (command.includes('turn off text mode')) {
+        turnOffTextMode();
+    }
+    else if (command.includes('turn on vision')) {
+        const response = "Ohh, activating vision using your webcam.";
+        document.querySelector("footer").style.display = "none";
+        displayResponse(response);
+        speak(response);
+        startWebcam();
+    }
+    else if (command.includes('what do you see')) {
+        describeVision();
+    }
+    else if (command.includes('turn off vision')) {
+        stopWebcam();
+        document.querySelector("footer").style.display = "block";
+    }
+}
+
+        imageUpload.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    uploadedImage.src = e.target.result;
+                    runObjectDetection(e.target.result); // Run object detection on the uploaded image
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Run object detection
+        function runObjectDetection(imageSrc) {
+            const image = new Image();
+            image.src = imageSrc;
+            image.onload = () => {
+                if (!model) {
+                    const response = "Object detection isn't ready yet — please try again in a moment.";
+                    displayResponse(response);
+                    speak(response);
+                    return;
+                }
+                (async () => {
+                    const preds = await model.detect(image, 20, 0.4);
+                    let response;
+                    if (preds.length) {
+                        response = `${countLabels(preds.map(p => p.class))} detected in the image.`;
+                    } else {
+                        response = "I couldn't outline specific objects in this image.";
+                    }
+                    if (classifier) {
+                        const g = (await classifier.classify(image, 3)).filter(x => x.probability > 0.3).map(x => x.className.split(',')[0]);
+                        if (g.length) response += ` It looks like: ${g.join(', ')}.`;
+                    }
+                    displayResponse(response);
+                    speak(response);
+                })();
+            };
+                uploadedImage.src = '';
+                uploadedImage.style.display = 'none';
+        }
+    
+        function fetchWikipediaSummary(title) {
+            const url = `${WIKIPEDIA_API_URL}${encodeURIComponent(title)}`;
+            return fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.extract) {
+                        const response = data.extract;
+                        displayResponse(response);
+                        speak(response);
+                    } else {
+                        const response = "Hmm, sorry, I couldn’t find an answer for that.";
+                        displayResponse(response);
+                        speak(response);
+                    }
+                });
+        }
+
+        function searchWikipedia(query) {
+            // Strip trailing punctuation (e.g. "python?" -> "python") and extra whitespace
+            query = query.replace(/[?.!,]+$/g, '').trim();
+
+            if (!query) {
+                const response = "Please tell me what you'd like to know about.";
+                displayResponse(response);
+                speak(response);
+                return;
+            }
+
+            // First, use Wikipedia's search API to find the best-matching article title.
+            // This handles extra words, typos, and phrasing that a direct title lookup would miss.
+            const searchUrl = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=1&namespace=0&format=json&origin=*`;
+
+            fetch(searchUrl)
+                .then(response => response.json())
+                .then(data => {
+                    const bestTitle = data && data[1] && data[1][0];
+                    if (bestTitle) {
+                        return fetchWikipediaSummary(bestTitle);
+                    } else {
+                        // Fall back to a direct title lookup in case opensearch found nothing
+                        return fetchWikipediaSummary(query);
+                    }
+                })
+                .catch(error => {
+                    console.error('Wikipedia search error:', error);
+                    const response = "Sorry, there was an error while fetching from Wikipedia.";
+                    displayResponse(response);
+                    speak(response);
+                });
+        }
+    
+        // Event listener for text input
+       commandInput.addEventListener('keydown', function(event) {
+    if (event.key === 'Enter') {
+        const command = event.target.value.toLowerCase().trim();
+        if (command) {
+            displayUserText(command);
+
+            // Temporarily disable speak()
+            const originalSpeak = speak;
+            speak = function() {}; // Disable speaking
+            processCommand(command);
+            speak = originalSpeak; // Restore speaking
+
+            event.target.value = '';
+        }
+    }
+});
+
+
+    
+        // Speak when the button is clicked
+       document.getElementById('speak-btn').addEventListener('click', function () {
+    if (!isListening) {
+        startListening();
+        isListening = true;
+    } else {
+        recognition.stop();
+        isListening = false;
+        const response = "Okay, I've stopped listening.";
+        displayResponse(response);
+        speak(response);
+    }
+});
+
+document.getElementById('text-btn').addEventListener('click', function () {
+    if (!isTextMode) {
+        const response = "Text mode is now active. You can type commands below.";
+        displayResponse(response);
+        speak(response);
+        commandInput.style.display = "block";
+        commandInput.focus();
+        isTextMode = true;
+        isTypingMode = true;  // ❌ Disable speaking during typing
+    } else {
+        const response = "Okay, turned off text mode now.. The input box has been removed.";
+        displayResponse(response);
+        // Do NOT call speak() here — just show response silently
+        commandInput.style.display = "none";
+        isTextMode = false;
+        isTypingMode = false;  // ✅ Re-enable speaking for future
+    }
+});
+
+  const visionBtn = document.getElementById('vision-btn');
+
+  // Hover styling is handled by CSS (.vision-toggle:hover) in this design
+
+  visionBtn.addEventListener('click', () => {
+      const response = "Ohh, activating vision using your webcam.";
+      document.querySelector("footer").style.display = "none";
+      displayResponse(response);
+      speak(response);
+      startWebcam();
+  });
+</script>
+
+<script>
+    // --- Additive UI enhancements: status LEDs and signal-meter state ---
+    // Reads variables/functions already defined in the main script above,
+    // doesn't modify any of them, so core functionality is unaffected.
+    (function () {
+        const statusText = document.getElementById('status-text');
+
+        setInterval(function () {
+            const micOn = typeof isListening !== 'undefined' && isListening;
+            const textOn = typeof isTextMode !== 'undefined' && isTextMode;
+            let speaking = false; try { speaking = !!isSpeaking; } catch (e) {}
+            const webcamEl = document.getElementById('webcam');
+            const visionOn = !!(webcamEl && webcamEl.srcObject);
+
+            document.body.classList.toggle('led-mic', micOn);
+            document.body.classList.toggle('led-text', textOn);
+            document.body.classList.toggle('led-vision', visionOn);
+            document.body.classList.toggle('led-speak', speaking);
+
+            if (!statusText) return;
+            if (speaking) {
+                statusText.textContent = 'Speaking';
+            } else if (micOn) {
+                statusText.textContent = 'Listening';
+            } else if (visionOn) {
+                statusText.textContent = 'Vision active';
+            } else if (textOn) {
+                statusText.textContent = 'Text mode';
+            } else {
+                statusText.textContent = 'Idle';
+            }
+        }, 200);
+    })();
+</script>
+</body>
+</html>
